@@ -91,7 +91,7 @@ def load_user(user_id):
 
 # ================= LOAD MODEL =================
 
-model_path = os.getenv("MODEL_PATH", "trustlens_chicago_model.pkl")
+model_path = os.getenv("MODEL_PATH", "trustlens_chicago_models.pkl")
 saved = joblib.load(model_path)
 
 lr_model = saved["lr"]
