@@ -92,7 +92,9 @@ def load_user(user_id):
 # ================= LOAD MODEL =================
 
 model_path = os.getenv("MODEL_PATH", "trustlens_chicago_models.pkl")
+print("Loading model from:", model_path)
 saved = joblib.load(model_path)
+print("Vectorizer fitted:", hasattr(saved["vectorizer"], "idf_"))
 
 lr_model = saved["lr"]
 svm_model = saved["svm"]
