@@ -457,12 +457,6 @@ def batch_predict():
 # ================= RUN =================
 
 if __name__ == "__main__":
-   with app.app_context():
-     try:
-        db.create_all()
-    except Exception as e:
-        print("DB error:", e)
-
     # Create admin if not exists
     admin = User.query.filter_by(email="admin@gmail.com").first()
     
@@ -476,6 +470,5 @@ if __name__ == "__main__":
         db.session.add(admin)
         db.session.commit()
         print("✅ Admin auto-created")
-        
         
     app.run(debug=True)
