@@ -14,6 +14,17 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 from io import BytesIO
 
+import nltk
+try:
+    nltk.data.find('tokenizers/punkt')
+except:
+    nltk.download('punkt')
+
+try:
+    nltk.data.find('corpora/stopwords')
+except:
+    nltk.download('stopwords')
+
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -80,7 +91,8 @@ def load_user(user_id):
 
 # ================= LOAD MODEL =================
 
-saved = joblib.load("trustlens_chicago_model.pkl")
+model_path = os.getenv("MODEL_PATH", "trustlens_chicago_model.pkl")
+saved = joblib.load(model_path)
 
 lr_model = saved["lr"]
 svm_model = saved["svm"]
@@ -446,7 +458,10 @@ def batch_predict():
 
 if __name__ == "__main__":
    with app.app_context():
-    db.create_all()
+     try:
+        db.create_all()
+    except Exception as e:
+        print("DB error:", e)
 
     # Create admin if not exists
     admin = User.query.filter_by(email="admin@gmail.com").first()
