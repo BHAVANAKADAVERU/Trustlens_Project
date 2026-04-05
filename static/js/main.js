@@ -1,78 +1,80 @@
-function analyzeReview() {
 
-    const reviewText = document.getElementById("review_text").value;
-    const modelChoice = document.getElementById("model").value;
+async function analyzeReview() {
 
-    if (reviewText.trim() === "") {
-        alert("Please enter review text.");
-        return;
-    }
+    let text = document.getElementById("review_text").value;
+    let model = document.getElementById("model").value;
 
-    fetch("/predict", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            review_text: reviewText,
-            model: modelChoice
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
+    try {
+        let res = await fetch("/predict", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                review_text: text,
+                model: model
+            })
+        });
 
-        const resultBox = document.getElementById("resultBox");
+        let data = await res.json();
+        console.log(data);
+
+        // ================= RESULT =================
+        document.getElementById("resultBox").style.display = "block";
+
         const predictionText = document.getElementById("predictionText");
         const confidenceText = document.getElementById("confidenceText");
         const confidenceBar = document.getElementById("confidenceBar");
-        const wordDiv = document.getElementById("wordImportance");
-
-        resultBox.style.display = "block";
 
         predictionText.innerText = data.prediction;
         confidenceText.innerText = data.confidence;
 
-        confidenceBar.style.width = data.confidence + "%";
+        // ✅ CONFIDENCE BAR (same as old + animation)
+        let confidence = parseFloat(data.confidence);
+
+        confidenceBar.style.width = "0%";
+
+        setTimeout(() => {
+            confidenceBar.style.width = confidence + "%";
+        }, 100);
+
         confidenceBar.style.backgroundColor =
             data.prediction.includes("Fake") ? "#dc3545" : "#28a745";
 
-        resultBox.className = "result-box " +
-            (data.prediction.includes("Fake") ? "fake" : "genuine");
+        // SAME result box styling as old
+        document.getElementById("resultBox").className =
+            "result-box " + (data.prediction.includes("Fake") ? "fake" : "genuine");
 
-        // ------------------------------
-        // ✅ WORD IMPORTANCE SECTION
-        // ------------------------------
-        wordDiv.innerHTML = "";
+        // ================= EXPLANATION =================
+        let explanationDiv = document.getElementById("wordImportance");
 
-        if (data.explanation && Object.keys(data.explanation).length > 0) {
+        explanationDiv.innerHTML = "";
 
-            let html = "<h3>🔎 Word Importance</h3>";
+        if (data.explanation && data.explanation.important_words) {
 
-            if (data.explanation.fake_indicators.length > 0) {
-                html += "<b>Fake Indicators:</b><ul>";
-                data.explanation.fake_indicators.forEach(word => {
-                    html += `<li style="color:red">${word}</li>`;
-                });
-                html += "</ul>";
-            }
+            let wordsHTML = "<h3>🔍 Important Words</h3><ul>";
 
-            if (data.explanation.truthful_indicators.length > 0) {
-                html += "<b>Truthful Indicators:</b><ul>";
-                data.explanation.truthful_indicators.forEach(word => {
-                    html += `<li style="color:green">${word}</li>`;
-                });
-                html += "</ul>";
-            }
+            data.explanation.important_words.forEach(w => {
+                let word = w[0];
+                let score = w[1].toFixed(2);
 
-            wordDiv.innerHTML = html;
+                wordsHTML += `<li>${word} (${score})</li>`;
+            });
+
+            wordsHTML += "</ul>";
+
+            explanationDiv.innerHTML = wordsHTML;
+
+        } else {
+            explanationDiv.innerHTML = "<p>No explanation available</p>";
         }
 
-    })
-    .catch(error => {
-        alert("Backend connection error.");
+    } catch (error) {
         console.error(error);
-    });
+        alert("Backend connection error");
+    }
 }
+
 
 function uploadCSV() {
 
