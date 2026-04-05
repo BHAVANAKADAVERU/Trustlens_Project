@@ -96,6 +96,7 @@ def load_user(user_id):
 # saved = joblib.load(model_path)
 # print("Vectorizer fitted:", hasattr(saved["vectorizer"], "idf_"))
 saved = joblib.load("trustlens_chicago_models.pkl")
+print("Vectorizer loaded:", hasattr(saved["vectorizer"], "idf_"))
 
 lr_model = saved["lr"]
 svm_model = saved["svm"]
