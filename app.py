@@ -14,17 +14,6 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 from io import BytesIO
 
-import nltk
-try:
-    nltk.data.find('tokenizers/punkt')
-except:
-    nltk.download('punkt')
-
-try:
-    nltk.data.find('corpora/stopwords')
-except:
-    nltk.download('stopwords')
-
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -91,12 +80,7 @@ def load_user(user_id):
 
 # ================= LOAD MODEL =================
 
-# model_path = os.getenv("MODEL_PATH", "trustlens_chicago_models.pkl")
-# print("Loading model from:", model_path)
-# saved = joblib.load(model_path)
-# print("Vectorizer fitted:", hasattr(saved["vectorizer"], "idf_"))
-saved = joblib.load("trustlens_chicago_models.pkl")
-print("Vectorizer loaded:", hasattr(saved["vectorizer"], "idf_"))
+saved = joblib.load("trustlens_chicago_model.pkl")
 
 lr_model = saved["lr"]
 svm_model = saved["svm"]
@@ -121,9 +105,29 @@ def clean_text(text):
 
 # ================= MODEL =================
 
+# def run_model(text, model, model_name):
+
+#     features = vectorizer.transform([clean_text(text)])
+#     prediction = model.predict(features)[0]
+
+#     if hasattr(model, "predict_proba"):
+#         confidence = float(np.max(model.predict_proba(features)[0]))
+#     else:
+#         confidence = float(expit(abs(model.decision_function(features)[0])))
+
+#     label = "Deceptive (Fake Review)" if prediction == 1 else "Truthful (Genuine Review)"
+
+#     return label, confidence, {}
+
+
+
+
+
+
 def run_model(text, model, model_name):
 
-    features = vectorizer.transform([clean_text(text)])
+    cleaned = clean_text(text)
+    features = vectorizer.transform([cleaned])
     prediction = model.predict(features)[0]
 
     if hasattr(model, "predict_proba"):
@@ -133,7 +137,37 @@ def run_model(text, model, model_name):
 
     label = "Deceptive (Fake Review)" if prediction == 1 else "Truthful (Genuine Review)"
 
-    return label, confidence, {}
+    # ================= EXPLAINABILITY =================
+    explanation = {}
+
+    try:
+        feature_names = vectorizer.get_feature_names_out()
+
+        if hasattr(model, "coef_"):  # Logistic Regression / Linear SVM
+            coefs = model.coef_[0]
+
+            word_scores = {}
+            words = cleaned.split()
+
+            for word in words:
+                if word in feature_names:
+                    idx = list(feature_names).index(word)
+                    word_scores[word] = coefs[idx]
+
+            # Sort words by importance
+            important_words = sorted(word_scores.items(), key=lambda x: abs(x[1]), reverse=True)[:5]
+
+            explanation = {
+                "important_words": important_words
+            }
+
+    except Exception as e:
+        explanation = {"info": "Basic explanation not available"}
+
+    return label, confidence, explanation
+
+
+
 
 def predict_review(text, model_choice):
 
@@ -304,7 +338,8 @@ def predict():
     data = request.json
     text = data.get("review_text")
 
-    label, confidence, model_name, _ = predict_review(text, data.get("model"))
+    # label, confidence, model_name, _ = predict_review(text, data.get("model"))
+    label, confidence, model_name, explanation = predict_review(text, data.get("model"))
 
     db.session.add(Review(
         text=text,
@@ -319,7 +354,8 @@ def predict():
     return jsonify({
         "prediction": label,
         "confidence": round(confidence * 100, 2),
-        "model": model_name
+        "model": model_name,
+        "explanation": explanation
     })
 
 
@@ -461,6 +497,9 @@ def batch_predict():
 # ================= RUN =================
 
 if __name__ == "__main__":
+   with app.app_context():
+    db.create_all()
+
     # Create admin if not exists
     admin = User.query.filter_by(email="admin@gmail.com").first()
     
@@ -474,5 +513,6 @@ if __name__ == "__main__":
         db.session.add(admin)
         db.session.commit()
         print("✅ Admin auto-created")
+        
         
     app.run(debug=True)
