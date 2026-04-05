@@ -80,7 +80,7 @@ def load_user(user_id):
 
 # ================= LOAD MODEL =================
 
-saved = joblib.load("trustlens_chicago_model.pkl")
+saved = joblib.load("trustlens_chicago_models.pkl")
 
 lr_model = saved["lr"]
 svm_model = saved["svm"]
